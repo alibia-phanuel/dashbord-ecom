@@ -44,7 +44,7 @@ export default function Login() {
 
     // 🚀 Redirige vers Home après un petit délai
     setTimeout(() => {
-      navigate("/statistique");
+      navigate("/statistiques");
     }, 1500); // attend 1.5s pour laisser voir le toast
   };
   return (
