@@ -13,9 +13,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/api/categoryApi";
 
 // 🛡️ Schéma Zod pour valider les catégories
 const categorySchema = z.object({
@@ -48,36 +54,44 @@ const validateWithZod = (schema: z.ZodSchema) => (values: any) => {
 };
 
 export default function Categories() {
-  const [categories, setCategories] = useState<Category[]>([
-    { id: 1, name: "Smartphones" },
-    { id: 2, name: "Ordinateurs" },
-    { id: 3, name: "Accessoires" },
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Charger les catégories à l'ouverture
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetchCategories();
+        setCategories(res.data);
+      } catch (err) {
+        console.error("Erreur chargement des catégories", err);
+      }
+    };
+    load();
+  }, []);
 
   const formik = useFormik({
     initialValues: { name: "" },
     validate: validateWithZod(categorySchema),
-    onSubmit: (values, { resetForm }) => {
-      if (editCategory) {
-        // Modifier la catégorie
-        setCategories((prev) =>
-          prev.map((cat) =>
-            cat.id === editCategory.id ? { ...cat, name: values.name } : cat
-          )
-        );
-      } else {
-        // Ajouter une nouvelle catégorie
-        const newCategory: Category = {
-          id: Date.now(),
-          name: values.name,
-        };
-        setCategories((prev) => [...prev, newCategory]);
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        if (editCategory) {
+          const res = await updateCategory(editCategory.id, values);
+          setCategories((prev) =>
+            prev.map((cat) => (cat.id === editCategory.id ? res.data : cat))
+          );
+        } else {
+          const res = await createCategory(values);
+          setCategories((prev) => [...prev, res.data]);
+        }
+
+        resetForm();
+        setEditCategory(null);
+        setIsDialogOpen(false);
+      } catch (err) {
+        console.error("Erreur création/modification catégorie", err);
       }
-      resetForm();
-      setEditCategory(null);
-      setIsDialogOpen(false);
     },
   });
 
@@ -93,8 +107,13 @@ export default function Categories() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setCategories((prev) => prev.filter((cat) => cat.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteCategory(id);
+      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+    } catch (err) {
+      console.error("Erreur suppression catégorie", err);
+    }
   };
 
   return (
