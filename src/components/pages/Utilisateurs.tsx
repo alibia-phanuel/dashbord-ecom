@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Pencil, Plus, Filter } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
 import {
@@ -21,6 +21,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  fetchUsers,
+  //fetchUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+} from "@/api/userApi";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "react-toastify";
 
 // 🛡️ Schéma Zod pour valider les utilisateurs
 const userSchema = z.object({
@@ -32,16 +41,44 @@ const userSchema = z.object({
     .string()
     .email("Adresse email invalide")
     .max(100, "L'email ne peut pas dépasser 100 caractères"),
-  role: z.enum(["Admin", "Employé", "Client"], {
+  password: z
+    .string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+    .optional(),
+  role: z.enum(["admin", "employe", "client"], {
     errorMap: () => ({ message: "Rôle invalide (Admin, Employé, Client)" }),
   }),
 });
+const userCreateSchema = userSchema.extend({
+  password: z
+    .string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+});
+
+const userUpdateSchema = userSchema.extend({
+  password: z
+    .string()
+    .optional()
+    .refine(
+      (val) => val === undefined || val === "" || val.length >= 8,
+      "Le mot de passe doit contenir au moins 8 caractères"
+    ),
+});
 
 type User = {
-  id: number;
+  id: string;
+  uuid: string;
   name: string;
   email: string;
-  role: "Admin" | "Employé" | "Client";
+  role: "admin" | "employe" | "client";
+};
+
+// Données du formulaire (création / modification) qui incluent le mot de passe
+type UserFormValues = {
+  name: string;
+  email: string;
+  password: string; // Obligatoire à la création, optionnel à la modification
+  role: "admin" | "employe" | "client";
 };
 
 // 🔥 Fonction pour valider avec Zod
@@ -63,52 +100,76 @@ const validateWithZod = (schema: z.ZodSchema) => (values: any) => {
 };
 
 export default function Utilisateurs() {
-  const [users, setUsers] = useState<User[]>([
-    { id: 1, name: "Alice Dupont", email: "alice@example.com", role: "Admin" },
-    { id: 2, name: "Jean Martin", email: "jean@example.com", role: "Client" },
-    {
-      id: 3,
-      name: "Sophie Lambert",
-      email: "sophie@example.com",
-      role: "Employé",
-    },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<
-    "Tous" | "Admin" | "Employé" | "Client"
+    "Tous" | "Admin" | "Employe" | "Client"
   >("Tous");
+  const [uuidToDelete, setUuidToDelete] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const formik = useFormik({
-    initialValues: { name: "", email: "", role: "Client" },
-    validate: validateWithZod(userSchema),
-    onSubmit: (values, { resetForm }) => {
-      if (editUser) {
-        // Modifier l'utilisateur
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editUser.id
-              ? {
-                  ...u,
-                  ...values,
-                  role: values.role as "Admin" | "Employé" | "Client",
-                }
-              : u
-          )
-        );
-      } else {
-        // Ajouter un nouvel utilisateur
-        const newUser: User = {
-          id: Date.now(),
-          name: values.name,
-          email: values.email,
-          role: values.role as User["role"],
-        };
-        setUsers((prev) => [...prev, newUser]);
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await fetchUsers();
+        setUsers(response.data); // Assure-toi que ton backend renvoie bien un tableau au format attendu
+      } catch (error) {
+        console.error("Erreur lors du chargement des utilisateurs", error);
       }
-      resetForm();
-      setEditUser(null);
-      setIsDialogOpen(false);
+    };
+    loadUsers();
+  }, []);
+  const formik = useFormik<UserFormValues>({
+    initialValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "client",
+    },
+    validate: (values) => {
+      if (editUser) {
+        // édition : mot de passe optionnel
+        return validateWithZod(userUpdateSchema)(values);
+      } else {
+        // création : mot de passe obligatoire
+        return validateWithZod(userCreateSchema)(values);
+      }
+    },
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        if (editUser) {
+          // Modification : si password vide, on l'exclut de l'objet envoyé
+          const { password, ...rest } = values;
+          const updateData = password.trim() ? values : rest;
+
+          const response = await updateUser(editUser.uuid, updateData);
+          console.log("Réponse backend :", response.data);
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.uuid === editUser.uuid
+                ? {
+                    ...u,
+                    name: values.name,
+                    email: values.email,
+                    role: values.role,
+                  }
+                : u
+            )
+          );
+        } else {
+          // Création : mot de passe obligatoire
+          const response = await createUser(values);
+          setUsers((prev) => [...prev, response.data.user]);
+        }
+
+        resetForm();
+        setEditUser(null);
+        setIsDialogOpen(false);
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde", error);
+        alert("Une erreur est survenue.");
+      }
     },
   });
 
@@ -119,21 +180,68 @@ export default function Utilisateurs() {
   };
 
   const openEditModal = (user: User) => {
-    formik.setValues(user);
+    formik.setValues({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+    });
     setEditUser(user);
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+  // const handleDelete = async (uuid: string) => {
+  //   try {
+  //     await deleteUser(uuid); // Appelle réellement l'API
+  //     setUsers((prev) => prev.filter((u) => u.uuid !== uuid)); // Supprime dans l'état local
+  //   } catch (error) {
+  //     console.error("Erreur suppression utilisateur :", error);
+  //   }
+  // };
+  const confirmDelete = async () => {
+    if (!uuidToDelete) return;
+
+    try {
+      await deleteUser(uuidToDelete);
+      setUsers((prev) => prev.filter((u) => u.uuid !== uuidToDelete));
+      setIsConfirmOpen(false);
+      setUuidToDelete(null);
+      toast.success("Utilisateur supprimée avec succes!");
+    } catch (error) {
+      console.error("Erreur suppression utilisateur :", error);
+      alert("Erreur lors de la suppression.");
+    }
   };
+
 
   // 👀 Filtrer les utilisateurs
   const filteredUsers =
-    roleFilter === "Tous" ? users : users.filter((u) => u.role === roleFilter);
+    roleFilter === "Tous"
+      ? users
+      : users.filter(
+        (u) => u.role?.toLowerCase() === roleFilter.toLocaleLowerCase());
 
   return (
     <Layout>
+      {isConfirmOpen && (
+        <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+            </DialogHeader>
+            <div>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</div>
+            <DialogFooter className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>
+                Annuler
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete}>
+                Supprimer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <div
         className="flex flex-col items-center justify-start w-full space-y-4 p-4"
         style={{ height: "calc(100vh - 32px)" }}
@@ -149,7 +257,7 @@ export default function Utilisateurs() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {["Tous", "Admin", "Employé", "Client"].map((role) => (
+                {["Tous", "Admin", "Employe", "Client"].map((role) => (
                   <DropdownMenuItem
                     key={role}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -170,7 +278,7 @@ export default function Utilisateurs() {
         {/* 📋 Liste des utilisateurs filtrée */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
           {filteredUsers.map((user) => (
-            <Card key={user.id} className="relative">
+            <Card key={user.uuid} className="relative">
               <CardHeader>
                 <CardTitle className="text-lg">{user.name}</CardTitle>
               </CardHeader>
@@ -191,7 +299,10 @@ export default function Utilisateurs() {
                 <Button
                   variant="destructive"
                   size="icon"
-                  onClick={() => handleDelete(user.id)}
+                  onClick={() => {
+                    setUuidToDelete(user.uuid);
+                    setIsConfirmOpen(true);
+                  }}
                 >
                   <Trash2 size={16} />
                 </Button>
@@ -242,18 +353,34 @@ export default function Utilisateurs() {
             </div>
             <div>
               <Input
-                id="role"
-                name="role"
-                placeholder="Rôle (Admin, Employé, Client)"
-                value={formik.values.role}
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Mot de passe"
+                value={formik.values.password || ""}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
               />
-              {formik.touched.role && formik.errors.role && (
+              {formik.touched.password && formik.errors.password && (
                 <p className="text-red-500 text-sm mt-1">
-                  {formik.errors.role}
+                  {formik.errors.password}
                 </p>
               )}
+            </div>
+            <div>
+              <select
+                id="role"
+                name="role"
+                value={formik.values.role}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full border rounded p-2"
+              >
+                <option value="">-- Choisir un role --</option>
+                <option value="admin">Admin</option>
+                <option value="employe">Employé</option>
+                <option value="client">Client</option>
+              </select>
             </div>
             <DialogFooter>
               <Button type="submit">

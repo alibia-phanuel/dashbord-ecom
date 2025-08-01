@@ -21,6 +21,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  //fetchCategoryById,
 } from "@/api/categoryApi";
 
 // 🛡️ Schéma Zod pour valider les catégories

@@ -21,6 +21,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  //fetchProductById,
 } from "@/api/productApi";
 import { fetchCategories } from "@/api/categoryApi";
 import { uploadImages, getImages, deleteImage } from "@/api/productImageApi";

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { loginUser } from "@/api/authApi";
 const loginSchema = z.object({
   email: z.string().email("Email invalide").nonempty("Email requis"),
   password: z
@@ -31,21 +32,48 @@ export default function Login() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setLoading(true);
-    console.log("Envoi des données…", values);
+    try {
 
-    // Simulation d’un appel API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // 🟢 Appel à l'API pour authentifier l'utilisateur
+    const response = await loginUser({
+      email: values.email,
+      password: values.password,
+    });
 
-    console.log("Réponse API : connexion réussie !");
-    setLoading(false);
+    // recupérer le token de la réponse
+    const token = response.data.token;
 
-    // ✅ Affiche une notification toast
+    // stocker le token dans le localStorage
+    localStorage.setItem("token", token);
+
+    // afficher un message de succès
     toast.success("Connexion réussie !");
 
-    // 🚀 Redirige vers Home après un petit délai
+    // Redirection apres un petit délai pour laisser le toast s'afficher
     setTimeout(() => {
       navigate("/statistiques");
-    }, 1500); // attend 1.5s pour laisser voir le toast
+    }, 1500);
+   } catch (error) {
+    console.error("Erreur lors de la connexion", error);
+    toast.error("Erreur lors de la connexion");
+   } finally {
+    setLoading(false);
+   }
+    // console.log("Envoi des données…", values);
+
+    // // Simulation d’un appel API
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // console.log("Réponse API : connexion réussie !");
+    // setLoading(false);
+
+    // // ✅ Affiche une notification toast
+    // toast.success("Connexion réussie !");
+
+    // // 🚀 Redirige vers Home après un petit délai
+    // setTimeout(() => {
+    //   navigate("/statistiques");
+    // }, 1500); // attend 1.5s pour laisser voir le toast
   };
   return (
     <div

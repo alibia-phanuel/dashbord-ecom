@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   {
@@ -67,6 +68,7 @@ const user = {
 };
 
 export function AppSidebar() {
+  const { logout } = useAuth();
   return (
     <Sidebar className="flex flex-col justify-between h-full">
       <SidebarContent>
@@ -114,7 +116,7 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => console.log("Déconnexion")}
+          onClick={() => logout()}
         >
           <LogOut className="h-5 w-5 text-red-500" />
           <span className="sr-only">Se déconnecter</span>
