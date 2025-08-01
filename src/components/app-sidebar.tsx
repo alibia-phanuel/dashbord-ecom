@@ -21,6 +21,15 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
 const items = [
   {
@@ -68,6 +77,7 @@ const user = {
 };
 
 export function AppSidebar() {
+  const [open, setOpen] = useState(false);
   const { logout } = useAuth();
   return (
     <Sidebar className="flex flex-col justify-between h-full">
@@ -113,15 +123,39 @@ export function AppSidebar() {
           <div className="font-medium text-sm">{user.name}</div>
           <div className="text-xs text-gray-500">{user.email}</div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => logout()}
-        >
+        <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
           <LogOut className="h-5 w-5 text-red-500" />
           <span className="sr-only">Se déconnecter</span>
         </Button>
       </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Se déconnecter ?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Êtes-vous sûr de vouloir vous déconnecter ? Cette action vous
+            ramènera à l'écran de connexion.
+          </p>
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)} // Ferme la modale
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                logout(); // Exécute la déconnexion
+                setOpen(false); // Ferme la modale
+              }}
+            >
+              Se déconnecter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 }
