@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Uploader des images produit</title>
+</head>
+<body>
+  <h1>Uploader des images pour un produit</h1>
+
+  <form action="http://localhost:5000/api/products/1/images" method="POST" enctype="multipart/form-data">
+    <input type="number" name="productId" value="productId"/>
+    <br><br>
+    <input type="file" name="images" multiple accept="image/*" />
+    <br><br>
+    
+    <button type="submit">Envoyer</button>
+  </form>
+</body>
+</html>
