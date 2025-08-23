@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import express from "express";
-
 import { AuthMiddleware } from "../middlewares/AuthMiddleware";
 import { Login } from "../controllers/auth.controller";
 interface AuthRequest extends Request {

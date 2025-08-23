@@ -11,10 +11,8 @@ import {
 } from "../controllers/auhtClient.controller";
 import userClientAuth from "../middlewares/userClientAuth";
 const authClientRouter = express.Router();
-
 authClientRouter.post("/register", register);
 authClientRouter.post("/login", login);
-
 authClientRouter.post("/logout", logout);
 authClientRouter.post("/send-verify-otp", userClientAuth, sendVerifyOtp);
 authClientRouter.post("/verify-account", userClientAuth, verifyEmail);

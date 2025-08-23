@@ -25,7 +25,7 @@ export const Login = async (
 ): Promise<void> => {
   try {
     const { email, password } = req.body;
-    console.log(email, password);
+
     // Vérification des champs
     if (!email || !password) {
       res.status(400).json({ message: "Email et mot de passe requis" });
